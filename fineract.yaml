@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fineract
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fineract
+  template:
+    metadata:
+      labels:
+        app: fineract
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.28
+          command:
+            - sh
+            - -c
+            - |
+              echo "⏳ Waiting for MariaDB at mariadb:3306...";
+              until nc -z mariadb 3306; do
+                echo "⌛ Not yet ready...";
+                sleep 2;
+              done;
+              echo "✅ MariaDB is reachable."
+
+      containers:
+        - name: fineract
+          image: localhost:5000/fineract:1.8.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: config
+              mountPath: "/config"
+              readOnly: true
+          env:
+            - name: SPRING_CONFIG_LOCATION
+              value: "file:/config/application.properties"
+            - name: JAVA_OPTS
+              value: "-Xmx1024m -Djava.security.egd=file:/dev/./urandom"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 60
+            periodSeconds: 20
+
+      volumes:
+        - name: config
+          configMap:
+            name: fineract-config
+            items:
+              - key: application.properties
+                path: application.properties
