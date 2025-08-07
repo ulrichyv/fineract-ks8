@@ -27,7 +27,6 @@ spec:
                 sleep 2;
               done;
               echo "✅ MariaDB is reachable."
-
       containers:
         - name: fineract
           image: localhost:5000/fineract:1.8.0
@@ -58,7 +57,6 @@ spec:
               scheme: HTTPS
             initialDelaySeconds: 60
             periodSeconds: 20
-
       volumes:
         - name: config
           configMap:
